@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-fortitude-dev-17ce0-authRole",
+      "UnauthRoleArn": "arn:aws:iam::463470946715:role/amplify-fortitude-dev-17ce0-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::463470946715:role/amplify-fortitude-dev-17ce0-authRole",
+      "Region": "us-east-2",
+      "DeploymentBucketName": "amplify-fortitude-dev-17ce0-deployment",
+      "UnauthRoleName": "amplify-fortitude-dev-17ce0-unauthRole",
+      "StackName": "amplify-fortitude-dev-17ce0",
+      "StackId": "arn:aws:cloudformation:us-east-2:463470946715:stack/amplify-fortitude-dev-17ce0/b0a5a110-dac2-11ef-8881-06d182b05025",
+      "AmplifyAppId": "d1aswem9abm6ds"
+    },
+    "categories": {
+      "auth": {
+        "fortitudead2b2a56": {}
+      }
+    }
+  }
+}
