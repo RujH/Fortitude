@@ -14,7 +14,7 @@ export default function HomeScreen() {
           styles.startButton,
           { opacity: pressed ? 0.8 : 1 }
         ]}
-        onPress={() => router.push('/workouts')}
+        onPress={() => router.push('/startNewWorkout')}
       >
         <FontAwesome name="play-circle" size={24} color="white" style={styles.buttonIcon} />
         <Text style={styles.buttonText}>Start Workout</Text>
