@@ -1,20 +1,66 @@
-import { StyleSheet, Pressable } from 'react-native';
+import { StyleSheet, Pressable, ScrollView, Platform, Alert, Share } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, router } from 'expo-router';
+import * as FileSystem from 'expo-file-system';
+import websocketService, { IMUData } from './services/websocketService';
 
 export default function RecordWorkoutScreen() {
   const { workoutName } = useLocalSearchParams<{ workoutName: string }>();
   const [isActive, setIsActive] = useState(false);
   const [time, setTime] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
+  const imuDataRef = useRef<IMUData[][]>([]);
+  const [imuCounts, setImuCounts] = useState<Record<number, number>>({});
+  const [imuStartTimes, setImuStartTimes] = useState<Record<number, number>>({});
+
+  // Calculate IMU data points and sampling rates
+  const updateIMUCounts = (data: IMUData[]) => {
+    setImuCounts(prev => {
+      const newCounts = { ...prev };
+      data.forEach(imu => {
+        newCounts[imu.id] = (newCounts[imu.id] || 0) + 1;
+      });
+      return newCounts;
+    });
+
+    // Update start times for new IMUs
+    setImuStartTimes(prev => {
+      const newStartTimes = { ...prev };
+      data.forEach(imu => {
+        if (!newStartTimes[imu.id]) {
+          newStartTimes[imu.id] = Date.now();
+        }
+      });
+      return newStartTimes;
+    });
+  };
+
+  // Calculate sampling rate for each IMU
+  const calculateSamplingRate = (imuId: number): number => {
+    const count = imuCounts[imuId] || 0;
+    const startTime = imuStartTimes[imuId];
+    if (!startTime || count === 0) return 0;
+
+    const elapsedSeconds = (Date.now() - startTime) / 1000;
+    return elapsedSeconds > 0 ? Math.round((count / elapsedSeconds) * 10) / 10 : 0;
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (isActive) {
+      // Start WebSocket connection when workout begins
+      websocketService.connect();
+      websocketService.setOnDataCallback((data) => {
+        imuDataRef.current.push(data);
+        updateIMUCounts(data);
+      });
+
       interval = setInterval(() => {
         setTime(prevTime => prevTime + 1);
+        setIsConnected(websocketService.isConnectedToServer());
       }, 1000);
     }
 
@@ -22,8 +68,114 @@ export default function RecordWorkoutScreen() {
       if (interval) {
         clearInterval(interval);
       }
+      // Don't disconnect on pause, just stop recording
+      websocketService.setOnDataCallback(() => {});
     };
   }, [isActive]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      websocketService.disconnect();
+    };
+  }, []);
+
+  const generateCSV = (data: IMUData[][]) => {
+    const csvRows = ['IMU ID,Timestamp,Q0,Q1,Q2,Q3'];
+    data.forEach(batch => {
+      batch.forEach(imu => {
+        csvRows.push(`${imu.id},${imu.timestamp},${imu.quaternion.w},${imu.quaternion.x},${imu.quaternion.y},${imu.quaternion.z}`);
+      });
+    });
+    return csvRows.join('\n');
+  };
+
+  const downloadWebCSV = (csvContent: string, fileName: string) => {
+    // Check if we have access to web APIs
+    if (typeof window === 'undefined' || !window.Blob || !window.URL || !window.URL.createObjectURL) {
+      throw new Error('Web download not supported in this environment');
+    }
+
+    try {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error occurred';
+      throw new Error('Failed to download file: ' + errorMessage);
+    }
+  };
+
+  const saveNativeCSV = async (csvContent: string, fileName: string) => {
+    const documentsDir = FileSystem.documentDirectory;
+    const filePath = `${documentsDir}${fileName}`;
+    await FileSystem.writeAsStringAsync(filePath, csvContent);
+    Alert.alert(
+      'CSV Saved',
+      `Data saved to:\n${filePath}\n\nYou can find the file in your app's Documents directory.`
+    );
+    return filePath;
+  };
+
+  const handleEndWorkout = async () => {
+    const imuData = imuDataRef.current;
+    const csvContent = generateCSV(imuData);
+    const fileName = `workout_${workoutName}_${Date.now()}.csv`;
+    
+    if (Platform.OS === 'web') {
+      try {
+        await downloadWebCSV(csvContent, fileName);
+      } catch (error) {
+        console.error('Error saving CSV:', error);
+        // Always fallback to showing data in new tab for web
+        try {
+          const newWindow = window.open();
+          if (newWindow) {
+            newWindow.document.write('<html><head><title>Workout Data</title></head><body>');
+            newWindow.document.write('<h3>Workout Data (CSV Format)</h3>');
+            newWindow.document.write(`<pre>${csvContent}</pre>`);
+            newWindow.document.write('</body></html>');
+            newWindow.document.close();
+          }
+        } catch (fallbackError) {
+          console.error('Fallback display failed:', fallbackError);
+          Alert.alert('Error', 'Could not save or display data. Please try again.');
+        }
+      }
+    } else {
+      try {
+        const filePath = await saveNativeCSV(csvContent, fileName);
+        try {
+          await Share.share({
+            url: filePath,
+            message: `Workout data for ${workoutName}`,
+          });
+        } catch (shareError) {
+          console.error('Error sharing file:', shareError);
+          // File is still saved even if sharing fails
+        }
+      } catch (error) {
+        console.error('Error saving CSV:', error);
+        Alert.alert('Error', 'Failed to save CSV file');
+      }
+    }
+    
+    // Navigate to summary
+    router.push({
+      pathname: '/workoutSummary',
+      params: { 
+        workoutName, 
+        time: time.toString(),
+        imuData: JSON.stringify(imuData)
+      }
+    });
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -33,54 +185,75 @@ export default function RecordWorkoutScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
           <Text style={styles.title}>{workoutName}</Text>
+          <View style={[
+            styles.connectionStatus,
+            { backgroundColor: isConnected ? '#4CD964' : '#FF3B30' }
+          ]} />
+        </View>
+        <View style={styles.timerContainer}>
+          <Text style={styles.timerText}>{formatTime(time)}</Text>
         </View>
       </View>
 
-      <View style={styles.timerContainer}>
-        <Text style={styles.timerText}>{formatTime(time)}</Text>
-        {isActive ? (
-          <Pressable 
-            style={({ pressed }) => [
-              styles.pauseButton,
-              { opacity: pressed ? 0.8 : 1 }
-            ]}
-            onPress={() => setIsActive(false)}
-          >
-            <FontAwesome name="pause" size={32} color="white" />
-          </Pressable>
-        ) : (
-          <View style={styles.buttonContainer}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.statsContainer}>
+          <Text style={styles.sectionTitle}>IMU Data Collection</Text>
+          <View style={styles.imuGrid}>
+            {Object.entries(imuCounts).map(([id, count]) => (
+              <View key={id} style={styles.imuCard}>
+                <Text style={styles.imuLabel}>IMU {id}</Text>
+                <Text style={styles.imuCount}>{count}</Text>
+                <Text style={styles.imuSubtext}>samples</Text>
+                <Text style={styles.samplingRate}>
+                  {calculateSamplingRate(Number(id))} Hz
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.controlsContainer}>
+          {isActive ? (
             <Pressable 
               style={({ pressed }) => [
-                styles.controlButton,
+                styles.pauseButton,
                 { opacity: pressed ? 0.8 : 1 }
               ]}
-              onPress={() => setIsActive(true)}
+              onPress={() => setIsActive(false)}
             >
-              <FontAwesome name="play" size={32} color="white" />
+              <FontAwesome name="pause" size={32} color="white" />
             </Pressable>
-            {time > 0 && (
+          ) : (
+            <View style={styles.buttonContainer}>
               <Pressable 
                 style={({ pressed }) => [
                   styles.controlButton,
-                  styles.endButton,
                   { opacity: pressed ? 0.8 : 1 }
                 ]}
-                onPress={() => {
-                  router.push({
-                    pathname: '/workoutSummary',
-                    params: { workoutName, time: time.toString() }
-                  });
-                }}
+                onPress={() => setIsActive(true)}
               >
-                <FontAwesome name="stop" size={32} color="white" />
+                <FontAwesome name="play" size={32} color="white" />
               </Pressable>
-            )}
-          </View>
-        )}
+              {time > 0 && (
+                <Pressable 
+                  style={({ pressed }) => [
+                    styles.controlButton,
+                    styles.endButton,
+                    { opacity: pressed ? 0.8 : 1 }
+                  ]}
+                  onPress={handleEndWorkout}
+                >
+                  <FontAwesome name="stop" size={32} color="white" />
+                </Pressable>
+              )}
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -89,30 +262,120 @@ export default function RecordWorkoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
-  content: {
-    flex: 1,
+    backgroundColor: '#f8f8f8',
   },
   header: {
+    backgroundColor: 'white',
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
+    width: '100%',
+    marginBottom: 15,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
+    alignItems: 'center',
     fontWeight: 'bold',
-    marginBottom: 10,
   },
   timerContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    width: '100%',
   },
   timerText: {
     fontSize: 48,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontWeight: '300',
+    color: '#007AFF',
+    textAlign: 'center',
+  },
+  connectionStatus: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  statsContainer: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 15,
+    color: '#333',
+  },
+  imuGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 15,
+  },
+  imuCard: {
+    width: '48%',
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    padding: 15,
+    alignItems: 'center',
+  },
+  imuLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 5,
+  },
+  imuCount: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  imuSubtext: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+  },
+  samplingRate: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  footer: {
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  controlsContainer: {
+    alignItems: 'center',
+    paddingVertical: 10,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -120,38 +383,40 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   pauseButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   controlButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   endButton: {
     backgroundColor: '#FF3B30',
+    shadowColor: '#FF3B30',
+    shadowOpacity: 0.4,
   }
 });

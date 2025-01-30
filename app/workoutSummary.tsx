@@ -1,9 +1,55 @@
-import { StyleSheet, Pressable } from 'react-native';
+import { StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useLocalSearchParams, router } from 'expo-router';
+import { IMUData } from './services/websocketService';
+import { useMemo } from 'react';
 
 export default function WorkoutSummaryScreen() {
-  const { workoutName, time } = useLocalSearchParams<{ workoutName: string, time: string }>();
+  const { workoutName, time, imuData } = useLocalSearchParams<{ 
+    workoutName: string, 
+    time: string,
+    imuData: string 
+  }>();
+
+  const parsedIMUData = useMemo(() => {
+    try {
+      return JSON.parse(imuData || '[]') as IMUData[][];
+    } catch (e) {
+      console.error('Error parsing IMU data:', e);
+      return [];
+    }
+  }, [imuData]);
+
+  const imuStats = useMemo(() => {
+    if (!parsedIMUData.length) return null;
+
+    // Calculate average motion intensity for each IMU
+    const stats = parsedIMUData.reduce((acc, batch) => {
+      batch.forEach(data => {
+        if (!acc[data.id]) {
+          acc[data.id] = {
+            totalMotion: 0,
+            samples: 0
+          };
+        }
+        // Calculate motion intensity from quaternion
+        const motionIntensity = Math.sqrt(
+          data.quaternion.x * data.quaternion.x +
+          data.quaternion.y * data.quaternion.y +
+          data.quaternion.z * data.quaternion.z
+        );
+        acc[data.id].totalMotion += motionIntensity;
+        acc[data.id].samples += 1;
+      });
+      return acc;
+    }, {} as Record<number, { totalMotion: number, samples: number }>);
+
+    // Convert to averages
+    return Object.entries(stats).map(([id, data]) => ({
+      id: Number(id),
+      averageMotion: data.totalMotion / data.samples
+    }));
+  }, [parsedIMUData]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -13,12 +59,16 @@ export default function WorkoutSummaryScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Workout Summary</Text>
         </View>
 
         <View style={styles.summaryContainer}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.label}>Total IMU Readings</Text>
+            <Text style={styles.value}>{parsedIMUData.length}</Text>
+          </View>
           <View style={styles.summaryItem}>
             <Text style={styles.label}>Workout Type</Text>
             <Text style={styles.value}>{workoutName}</Text>
@@ -29,7 +79,29 @@ export default function WorkoutSummaryScreen() {
             <Text style={styles.value}>{formatTime(Number(time))}</Text>
           </View>
         </View>
-      </View>
+
+        {imuStats && imuStats.length > 0 && (
+          <View style={styles.imuContainer}>
+            <Text style={styles.sectionTitle}>Motion Intensity by Sensor</Text>
+            {imuStats.map((stat) => (
+              <View key={stat.id} style={styles.imuItem}>
+                <Text style={styles.imuLabel}>Sensor {stat.id}</Text>
+                <View style={styles.intensityBar}>
+                  <View 
+                    style={[
+                      styles.intensityFill,
+                      { flex: Math.min(stat.averageMotion, 1) }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.intensityValue}>
+                  {stat.averageMotion.toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       <View style={styles.buttonContainer}>
         <Pressable 
@@ -59,6 +131,9 @@ export default function WorkoutSummaryScreen() {
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    paddingBottom: 20,
+  },
   container: {
     flex: 1,
     padding: 20,
@@ -80,6 +155,44 @@ const styles = StyleSheet.create({
   summaryContainer: {
     padding: 20,
     alignItems: 'center',
+  },
+  imuContainer: {
+    width: '100%',
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  imuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  imuLabel: {
+    width: 80,
+    fontSize: 14,
+  },
+  intensityBar: {
+    flex: 1,
+    height: 10,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 5,
+    marginHorizontal: 10,
+    overflow: 'hidden',
+  },
+  intensityFill: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+    borderRadius: 5,
+  },
+  intensityValue: {
+    width: 50,
+    fontSize: 12,
+    textAlign: 'right',
   },
   summaryItem: {
     alignItems: 'center',
