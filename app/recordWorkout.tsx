@@ -12,39 +12,23 @@ export default function RecordWorkoutScreen() {
   const [time, setTime] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const imuDataRef = useRef<IMUData[][]>([]);
-  const [imuCounts, setImuCounts] = useState<Record<number, number>>({});
-  const [imuStartTimes, setImuStartTimes] = useState<Record<number, number>>({});
-
-  // Calculate IMU data points and sampling rates
+  const [imuSamplingRates, setImuSamplingRates] = useState<Record<number, number>>({});
+  const [totalSamples, setTotalSamples] = useState<Record<number, number>>({});
+  const currentSecondSamplesRef = useRef<Record<number, number>>({});
+  
+  // Update IMU counts
   const updateIMUCounts = (data: IMUData[]) => {
-    setImuCounts(prev => {
-      const newCounts = { ...prev };
-      data.forEach(imu => {
-        newCounts[imu.id] = (newCounts[imu.id] || 0) + 1;
-      });
-      return newCounts;
+    // Count samples per IMU in this batch
+    data.forEach(imu => {
+      // Update samples for the current second
+      currentSecondSamplesRef.current[imu.id] = (currentSecondSamplesRef.current[imu.id] || 0) + 1;
+      
+      // Update total samples
+      setTotalSamples(prev => ({
+        ...prev,
+        [imu.id]: (prev[imu.id] || 0) + 1
+      }));
     });
-
-    // Update start times for new IMUs
-    setImuStartTimes(prev => {
-      const newStartTimes = { ...prev };
-      data.forEach(imu => {
-        if (!newStartTimes[imu.id]) {
-          newStartTimes[imu.id] = Date.now();
-        }
-      });
-      return newStartTimes;
-    });
-  };
-
-  // Calculate sampling rate for each IMU
-  const calculateSamplingRate = (imuId: number): number => {
-    const count = imuCounts[imuId] || 0;
-    const startTime = imuStartTimes[imuId];
-    if (!startTime || count === 0) return 0;
-
-    const elapsedSeconds = (Date.now() - startTime) / 1000;
-    return elapsedSeconds > 0 ? Math.round((count / elapsedSeconds) * 10) / 10 : 0;
   };
 
   useEffect(() => {
@@ -58,7 +42,13 @@ export default function RecordWorkoutScreen() {
         updateIMUCounts(data);
       });
 
+      // Update every second
       interval = setInterval(() => {
+        // Update sampling rates with the number of samples received in the last second
+        setImuSamplingRates(currentSecondSamplesRef.current);
+        // Reset the counter for the next second
+        currentSecondSamplesRef.current = {};
+        
         setTime(prevTime => prevTime + 1);
         setIsConnected(websocketService.isConnectedToServer());
       }, 1000);
@@ -202,13 +192,13 @@ export default function RecordWorkoutScreen() {
         <View style={styles.statsContainer}>
           <Text style={styles.sectionTitle}>IMU Data Collection</Text>
           <View style={styles.imuGrid}>
-            {Object.entries(imuCounts).map(([id, count]) => (
+            {Object.entries(totalSamples).map(([id, count]) => (
               <View key={id} style={styles.imuCard}>
                 <Text style={styles.imuLabel}>IMU {id}</Text>
                 <Text style={styles.imuCount}>{count}</Text>
                 <Text style={styles.imuSubtext}>samples</Text>
                 <Text style={styles.samplingRate}>
-                  {calculateSamplingRate(Number(id))} Hz
+                  {imuSamplingRates[Number(id)] || 0} Hz
                 </Text>
               </View>
             ))}
