@@ -156,6 +156,10 @@ export default function RecordWorkoutScreen() {
       }
     }
     
+    // Disconnect websocket and stop recording
+    websocketService.disconnect();
+    setIsActive(false);
+    
     // Navigate to summary
     router.push({
       pathname: '/workoutSummary',
