@@ -2,12 +2,16 @@ import { StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useAuthenticator } from '@aws-amplify/ui-react-native';
 
 export default function HomeScreen() {
+  const { user } = useAuthenticator();
+  const firstName = user?.attributes?.given_name || 'there';
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Fortitude</Text>
-      <Text style={styles.subtitle}>Your Personal Fitness Journey</Text>
+      <Text style={styles.title}>Welcome to Fortitude, {firstName}</Text>
+      <Text style={styles.subtitle}>Optimize your Strength</Text>
       
       <Pressable 
         style={({ pressed }) => [

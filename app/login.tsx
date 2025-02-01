@@ -115,12 +115,45 @@ export default function LoginScreen() {
   return (
     <ThemeProvider theme={theme}>
       <View style={styles.container}>
-        <Authenticator
-          loginMechanisms={['email']}
-          signUpAttributes={['email']}
-        >
-          <SignedIn />
-        </Authenticator>
+        <Authenticator.Provider>
+          <Authenticator
+            hideSignUp={false}
+            formFields={{
+              signUp: {
+                given_name: {
+                  order: 1,
+                  label: 'First Name',
+                  placeholder: 'Enter your first name',
+                  required: true,
+                },
+                family_name: {
+                  order: 2,
+                  label: 'Last Name',
+                  placeholder: 'Enter your last name',
+                  required: true,
+                },
+                email: {
+                  order: 3,
+                  label: 'Email',
+                  placeholder: 'Enter your email',
+                  required: true,
+                },
+                password: {
+                  order: 4,
+                  label: 'Password',
+                  placeholder: 'Create a password',
+                  required: true,
+                },
+                confirm_password: {
+                  order: 5,
+                  label: 'Confirm Password',
+                  placeholder: 'Confirm your password',
+                  required: true,
+                },
+              },
+            }}
+          />
+        </Authenticator.Provider>
       </View>
     </ThemeProvider>
   );

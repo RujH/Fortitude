@@ -5,22 +5,25 @@ import { Picker } from '@react-native-picker/picker';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
+import workoutData from '@/constants/WorkoutData';
 
 export default function StartNewWorkoutScreen() {
   const [selectedWorkout, setSelectedWorkout] = useState('');
   const [error, setError] = useState('');
 
-  const workoutOptions = [
-    { label: 'Strength Training', value: 'strength' },
-    { label: 'Cardio', value: 'cardio' },
-    { label: 'HIIT', value: 'hiit' },
-    { label: 'Yoga', value: 'yoga' },
-  ];
+  // Flatten all exercises into a single array
+  const workoutOptions = workoutData.flatMap(category => 
+    category.exercises.map(exercise => ({
+      label: exercise.name,
+      value: exercise.name.toLowerCase(),
+      category: category.name
+    }))
+  );
 
   const handleNext = () => {
     if (!selectedWorkout) {
       setError('Please select a workout');
-      Alert.alert('Please select a workout type');
+      Alert.alert('Please select an exercise');
       return;
     }
     setError('');
@@ -28,7 +31,7 @@ export default function StartNewWorkoutScreen() {
     router.push({
       pathname: '/recordWorkout',
       params: { 
-        workoutType: selectedWorkout,
+        workoutType: selectedOption?.category.toLowerCase(),
         workoutName: selectedOption?.label 
       }
     });
@@ -56,11 +59,11 @@ export default function StartNewWorkoutScreen() {
             style={[styles.picker]}
             prompt="Select a workout type"
           >
-            <Picker.Item label="Select workout type..." value="" />
+            <Picker.Item label="Select exercise..." value="" />
             {workoutOptions.map((option) => (
               <Picker.Item 
                 key={option.value} 
-                label={option.label} 
+                label={`${option.label} (${option.category})`}
                 value={option.value} 
               />
             ))}
