@@ -71,10 +71,10 @@ export default function RecordWorkoutScreen() {
   }, []);
 
   const generateCSV = (data: IMUData[][]) => {
-    const csvRows = ['IMU ID,Timestamp,Q0,Q1,Q2,Q3'];
+    const csvRows = ['IMU ID,Timestamp,W,X,Y,Z,Sys Cal, Gyro Cal, Accel Cal, Mag Cal'];
     data.forEach(batch => {
       batch.forEach(imu => {
-        csvRows.push(`${imu.id},${imu.timestamp},${imu.quaternion.w},${imu.quaternion.x},${imu.quaternion.y},${imu.quaternion.z}`);
+        csvRows.push(`${imu.id},${imu.timestamp},${imu.quaternion.w},${imu.quaternion.x},${imu.quaternion.y},${imu.quaternion.z},${imu.calibration.s},${imu.calibration.g},${imu.calibration.a},${imu.calibration.m}`);
       });
     });
     return csvRows.join('\n');

@@ -9,6 +9,12 @@ export interface IMUData {
     y: number;
     z: number;
   };
+  calibration: {
+    s: number;
+    g: number;
+    a: number;
+    m: number;
+  }
 }
 
 class WebSocketService {
@@ -54,14 +60,16 @@ class WebSocketService {
           if (line.trim() === '') continue;
 
           // Parse space-separated values
-          const [id, timestamp, w, x, y, z] = line.split(' ').map(Number);
+          const [id, timestamp, w, x, y, z, s, g, a, m] = line.split(' ').map(Number);
 
           if (!isNaN(id) && !isNaN(timestamp) && 
-              !isNaN(w) && !isNaN(x) && !isNaN(y) && !isNaN(z)) {
+              !isNaN(w) && !isNaN(x) && !isNaN(y) && !isNaN(z) && 
+              !isNaN(s) && !isNaN(g) && !isNaN(a) && !isNaN(m)) {
             imuDataBatch.push({
               id,
               timestamp,
-              quaternion: { w, x, y, z }
+              quaternion: { w, x, y, z },
+              calibration: { s, g, a, m }
             });
           }
         }
