@@ -1,53 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   StyleSheet, 
   ScrollView, 
   Pressable, 
-  TextInput, 
   Alert 
 } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import workoutData from '@/constants/WorkoutData';
 import { router } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
-import websocketService from '../services/websocketService'; // Adjust path as needed
-
 export default function WorkoutsScreen() {
-  // === ESP32 Connection Logic ===
-  const [espIP, setEspIP] = useState('192.168.1.207');
-  const [isConnected, setIsConnected] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    // Check connection status every second
-    const interval = setInterval(() => {
-      setIsConnected(websocketService.isConnectedToServer());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleIPSubmit = () => {
-    if (!isValidIP(espIP)) {
-      Alert.alert('Invalid IP', 'Please enter a valid IP address');
-      return;
-    }
-    websocketService.updateESPIP(espIP);
-    setIsEditing(false);
-  };
-
-  const isValidIP = (ip: string) => {
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipRegex.test(ip)) return false;
-    
-    const parts = ip.split('.');
-    return parts.every(part => {
-      const num = parseInt(part, 10);
-      return num >= 0 && num <= 255;
-    });
-  };
+  const [selectedWorkout, setSelectedWorkout] = useState<{
+    categoryIndex: number;
+    exerciseIndex: number;
+    workoutName: string;
+  } | null>(null);
 
   // === Workout Category Expand/Collapse Logic ===
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
@@ -65,6 +33,17 @@ export default function WorkoutsScreen() {
     }));
   };
 
+  const handleNext = () => {
+    if (!selectedWorkout) {
+      Alert.alert('Selection Required', 'Please select a workout before continuing');
+      return;
+    }
+    router.push({
+      pathname: '/startNewWorkout',
+      params: selectedWorkout
+    });
+  };
+
   return (
     <View style={styles.mainContainer}>
       {/* Header */}
@@ -72,53 +51,8 @@ export default function WorkoutsScreen() {
         <Text style={styles.title}>Workouts</Text>
       </View>
 
-      {/* ESP32 Connection Card and Workout Selection */}
-      <View style={styles.ipContainer}>
-        <View style={styles.ipHeader}>
-          <Text style={styles.label}>ESP32 Connection</Text>
-          <View 
-            style={[
-              styles.connectionIndicator,
-              { backgroundColor: isConnected ? '#4CD964' : '#FF3B30' }
-            ]} 
-          />
-        </View>
-        
-        {isEditing ? (
-          <View style={styles.ipEditContainer}>
-            <TextInput
-              style={styles.ipInput}
-              value={espIP}
-              onChangeText={setEspIP}
-              placeholder="192.168.1.207"
-              keyboardType="numeric"
-              autoFocus
-              maxLength={15}
-            />
-            <Pressable
-              style={({ pressed }) => [
-                styles.ipButton,
-                { opacity: pressed ? 0.8 : 1 }
-              ]}
-              onPress={handleIPSubmit}
-            >
-              <Text style={styles.buttonText}>Connect</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            style={styles.ipDisplayContainer}
-            onPress={() => setIsEditing(true)}
-          >
-            <View style={styles.ipInfo}>
-              <Text style={styles.ipLabel}>IP Address</Text>
-              <Text style={styles.ipText}>{espIP}</Text>
-            </View>
-            <FontAwesome name="pencil" size={20} color="#007AFF" />
-          </Pressable>
-        )}
-
-        {/* Workout selection area */}
+      {/* Workout Selection */}
+      <View style={styles.workoutContainer}>
         <ScrollView style={styles.scrollContainer}>
           <View style={styles.innerContainer}>
             {workoutData.map((category, categoryIndex) => (
@@ -141,25 +75,19 @@ export default function WorkoutsScreen() {
                       <Pressable
                         key={exerciseIndex}
                         onPress={() => {
-                          if (!isConnected) {
-                            Alert.alert(
-                              'Not Connected',
-                              'Please ensure the ESP32 is connected before recording a workout',
-                              [{ text: 'OK' }]
-                            );
-                            return;
-                          }
-                          router.push({
-                            pathname: '/recordWorkout',
-                            params: { 
-                              categoryIndex, 
-                              exerciseIndex,
-                              workoutName: exercise.name 
-                            }
+                          setSelectedWorkout({
+                            categoryIndex,
+                            exerciseIndex,
+                            workoutName: exercise.name
                           });
                         }}
                       >
-                        <View style={styles.card}>
+                        <View style={[
+                          styles.card,
+                          selectedWorkout?.categoryIndex === categoryIndex && 
+                          selectedWorkout?.exerciseIndex === exerciseIndex && 
+                          styles.selectedCard
+                        ]}>
                           <Text style={styles.exerciseName}>{exercise.name}</Text>
                           {exercise.description && (
                             <Text style={styles.description}>
@@ -180,13 +108,23 @@ export default function WorkoutsScreen() {
             ))}
           </View>
         </ScrollView>
+
+        {/* Next Button */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.nextButton,
+            { opacity: pressed ? 0.8 : 1 }
+          ]}
+          onPress={handleNext}
+        >
+          <Text style={styles.nextButtonText}>Next</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // -- Main container styles --
   mainContainer: {
     flex: 1,
     padding: 20,
@@ -201,74 +139,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
   },
-  // -- ESP32 Connection & Workout Selection Container --
-  ipContainer: {
+  workoutContainer: {
     flex: 1,
     backgroundColor: '#f8f8f8',
     borderRadius: 12,
     padding: 15,
     marginBottom: 0,
   },
-  ipHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  connectionIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  ipEditContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  ipDisplayContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-  },
-  ipInfo: {
-    flex: 1,
-  },
-  ipLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  ipInput: {
-    flex: 1,
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    backgroundColor: 'white',
-  },
-  ipText: {
-    fontSize: 17,
-    fontWeight: '500',
-  },
-  ipButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  // -- Scrollable workout list inside ipContainer --
   scrollContainer: {
     flex: 1,
   },
@@ -308,6 +185,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
   },
+  selectedCard: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2196F3',
+    borderWidth: 1,
+  },
   exerciseName: {
     fontSize: 18,
     fontWeight: '600',
@@ -323,5 +205,18 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  nextButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

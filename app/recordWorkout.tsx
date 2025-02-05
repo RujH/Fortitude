@@ -3,11 +3,20 @@ import { Text, View } from '@/components/Themed';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, router } from 'expo-router';
+import workoutData from '@/constants/WorkoutData';
 import * as FileSystem from 'expo-file-system';
 import websocketService, { IMUData } from './services/websocketService';
 
 export default function RecordWorkoutScreen() {
-  const { workoutName } = useLocalSearchParams<{ workoutName: string }>();
+  const { categoryIndex, exerciseIndex, workoutName } = useLocalSearchParams<{
+    categoryIndex: string;
+    exerciseIndex: string;
+    workoutName: string;
+  }>();
+  
+  // Convert string indices to numbers and get workout details
+  const category = workoutData[Number(categoryIndex)];
+  const exercise = category?.exercises[Number(exerciseIndex)];
   const [isActive, setIsActive] = useState(false);
   const [time, setTime] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
