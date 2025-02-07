@@ -3,12 +3,14 @@ import {
   StyleSheet, 
   ScrollView, 
   Pressable, 
-  Alert 
+  Alert,
+  Linking
 } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import workoutData from '@/constants/WorkoutData';
 import { router } from 'expo-router';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, ArrowUpRight } from 'lucide-react-native';
+import { Link } from 'expo-router';
 
 export default function WorkoutsScreen() {
   const [selectedWorkout, setSelectedWorkout] = useState<{
@@ -53,23 +55,23 @@ export default function WorkoutsScreen() {
 
       {/* Workout Selection */}
       <View style={styles.workoutContainer}>
-        <ScrollView style={styles.scrollContainer}>
-          <View style={styles.innerContainer}>
-            {workoutData.map((category, categoryIndex) => (
-              <View key={categoryIndex} style={styles.categoryContainer}>
-                <Pressable 
-                  onPress={() => toggleCategory(category.name)}
-                  style={styles.categoryHeader}
-                >
-                  <Text style={styles.categoryTitle}>{category.name}</Text>
-                  {expandedCategories[category.name] ? (
-                    <ChevronUp size={24} color="#333" />
-                  ) : (
-                    <ChevronDown size={24} color="#333" />
-                  )}
-                </Pressable>
-                
-                {expandedCategories[category.name] && (
+      <ScrollView style={styles.scrollContainer}>
+      <View style={styles.container}>
+        {workoutData.map((category, categoryIndex) => (
+          <View key={categoryIndex} style={styles.categoryContainer}>
+            <Pressable 
+              onPress={() => toggleCategory(category.name)}
+              style={styles.categoryHeader}
+            >
+              <Text style={styles.categoryTitle}>{category.name}</Text>
+              {expandedCategories[category.name] ? (
+                <ChevronUp size={24} color="#333" />
+              ) : (
+                <ChevronDown size={24} color="#333" />
+              )}
+            </Pressable>
+
+            {expandedCategories[category.name] && (
                   <View style={styles.cardsContainer}>
                     {category.exercises.map((exercise, exerciseIndex) => (
                       <Pressable
@@ -88,7 +90,18 @@ export default function WorkoutsScreen() {
                           selectedWorkout?.exerciseIndex === exerciseIndex && 
                           styles.selectedCard
                         ]}>
-                          <Text style={styles.exerciseName}>{exercise.name}</Text>
+                          <View style={styles.cardHeader}>
+                            <Text style={styles.exerciseName}>{exercise.name}</Text>
+                            <Pressable
+                              style={({ pressed }) => [
+                                styles.iconButton,
+                                { opacity: pressed ? 0.6 : 1 }
+                              ]}
+                              onPress={() => Linking.openURL(exercise.link)}
+                            >
+                              <ArrowUpRight size={20} color="#666" />
+                            </Pressable>
+                          </View>
                           {exercise.description && (
                             <Text style={styles.description}>
                               {exercise.description}
@@ -104,10 +117,12 @@ export default function WorkoutsScreen() {
                     ))}
                   </View>
                 )}
-              </View>
-            ))}
+            
+
           </View>
-        </ScrollView>
+        ))}
+      </View>
+    </ScrollView>
 
         {/* Next Button */}
         <Pressable
@@ -128,6 +143,10 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     padding: 20,
+  },
+  container: {
+    flex: 1,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
@@ -190,6 +209,13 @@ const styles = StyleSheet.create({
     borderColor: '#2196F3',
     borderWidth: 1,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+    backgroundColor: 'transparent',
+  },
   exerciseName: {
     fontSize: 18,
     fontWeight: '600',
@@ -205,6 +231,9 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  iconButton: {
+    padding: 4,
   },
   nextButton: {
     backgroundColor: '#007AFF',
