@@ -1,8 +1,9 @@
-import { StyleSheet, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import workoutData from '@/constants/WorkoutData';
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Link } from 'expo-router';
 
 export default function WorkoutsScreen() {
   // Initialize state with all categories expanded
@@ -41,7 +42,11 @@ export default function WorkoutsScreen() {
             {expandedCategories[category.name] && (
               <View style={styles.cardsContainer}>
                 {category.exercises.map((exercise, exerciseIndex) => (
-                  <View key={exerciseIndex} style={styles.card}>
+                  <Pressable 
+                    key={exerciseIndex}
+                    style={styles.card}
+                    onPress={() => Linking.openURL(exercise.link)}
+                  >
                     <Text style={styles.exerciseName}>{exercise.name}</Text>
                     {exercise.description && (
                       <Text style={styles.description}>{exercise.description}</Text>
@@ -51,7 +56,7 @@ export default function WorkoutsScreen() {
                         {exercise.beginner_modification}
                       </Text>
                     )}
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             )}
