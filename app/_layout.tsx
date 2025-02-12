@@ -1,121 +1,140 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack, router, usePathname } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import 'react-native-reanimated';
+// import FontAwesome from '@expo/vector-icons/FontAwesome';
+// import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+// import { useFonts } from 'expo-font';
+// import { Stack, router, usePathname } from 'expo-router';
+// import * as SplashScreen from 'expo-splash-screen';
+// import { useEffect, useState } from 'react';
+// import { View, ActivityIndicator } from 'react-native';
+// import { Session } from '@supabase/supabase-js';
 
-import { useColorScheme } from '@/components/useColorScheme';
+// import { useColorScheme } from '@/components/useColorScheme';
+// import { initSupabase } from '../lib/supabase';
 
-import { Amplify } from 'aws-amplify';
-import { Authenticator, ThemeProvider as AmplifyThemeProvider } from '@aws-amplify/ui-react-native';
-import { Hub } from 'aws-amplify/utils';
-import { getCurrentUser } from 'aws-amplify/auth';
-import awsmobile from './aws-exports';
+// export {
+//   // Catch any errors thrown by the Layout component.
+//   ErrorBoundary,
+// } from 'expo-router';
 
-// Configure Amplify
-Amplify.configure(awsmobile);
+// export const unstable_settings = {
+//   initialRouteName: '/login',
+//   unstable_noSSR: true
+// };
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+// // Prevent the splash screen from auto-hiding before asset loading is complete.
+// SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  initialRouteName: '/login',
-};
+// export default function RootLayout() {
+//   const [loaded, error] = useFonts({
+//     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+//     ...FontAwesome.font,
+//   });
+//   const [session, setSession] = useState<Session | null>(null);
+//   const [isLoading, setIsLoading] = useState(true);
+//   const pathname = usePathname();
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+//   // Handle font loading error
+//   useEffect(() => {
+//     if (error) throw error;
+//   }, [error]);
 
-export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    ...FontAwesome.font,
-  });
+//   // Hide splash screen once fonts are loaded
+//   useEffect(() => {
+//     if (loaded) {
+//       SplashScreen.hideAsync();
+//     }
+//   }, [loaded]);
 
-  const pathname = usePathname();
+//   // Initialize Supabase client
+//   useEffect(() => {
+//     const initializeAuth = async () => {
+//       try {
+//         const supabase = initSupabase();
+//         const { data: { session: initialSession } } = await supabase.auth.getSession();
+//         setSession(initialSession);
+        
+//         // Only attempt navigation after setting the session
+//         if (initialSession) {
+//           if (pathname === '/login') {
+//             setTimeout(() => router.replace('/(tabs)/home'), 0);
+//           }
+//         } else {
+//           if (pathname !== '/login') {
+//             setTimeout(() => router.replace('/login'), 0);
+//           }
+//         }
 
-  // Set up auth listener
+//         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+//           setSession(session);
+//           if (session) {
+//             if (pathname === '/login') {
+//               setTimeout(() => router.replace('/(tabs)/home'), 0);
+//             }
+//           } else {
+//             if (!pathname.includes('/login')) {
+//               setTimeout(() => router.replace('/login'), 0);
+//             }
+//           }
+//         });
+
+//         setIsLoading(false);
+//         return () => subscription.unsubscribe();
+//       } catch (error) {
+//         console.error('Auth initialization error:', error);
+//         setIsLoading(false);
+//       }
+//     };
+
+//     initializeAuth();
+//   }, [pathname]);
+
+//   if (!loaded || isLoading) {
+//     return (
+//       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+//         <ActivityIndicator size="large" />
+//       </View>
+//     );
+//   }
+
+//   const colorScheme = useColorScheme();
+
+//   return (
+//     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+//       <Stack>
+//         <Stack.Screen name="login" options={{ headerShown: false }} />
+//         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+//         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+//         <Stack.Screen name="startNewWorkout" options={{ headerShown: false }} />
+//         <Stack.Screen name="recordWorkout" options={{ headerShown: false }} />
+//         <Stack.Screen name="workoutSummary" options={{ headerShown: false }} />
+//       </Stack>
+//     </ThemeProvider>
+//   );
+// }
+
+
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import Auth from '../components/Auth'
+import Account from '../components/Account'
+import { View } from 'react-native'
+import { Session } from '@supabase/supabase-js'
+
+export default function App() {
+  const [session, setSession] = useState<Session | null>(null)
+
   useEffect(() => {
-    const unsubscribe = Hub.listen('auth', ({ payload }) => {
-      switch (payload.event) {
-        case 'signedIn':
-          if (pathname === '/login') {
-            router.replace('/(tabs)/home');
-          }
-          break;
-        case 'signedOut':
-          if (!pathname.includes('/login')) {
-            router.replace('/login');
-          }
-          break;
-      }
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
 
-    // Check current auth state on mount
-    checkAuthState();
-
-    return unsubscribe;
-  }, [pathname]);
-
-  async function checkAuthState() {
-    try {
-      await getCurrentUser();
-      if (pathname === '/login') {
-        router.replace('/(tabs)/home');
-      }
-    } catch (error) {
-      if (!pathname.includes('/login')) {
-        router.replace('/login');
-      }
-    }
-  }
-
-  // Handle font loading error
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  // Hide splash screen once fonts are loaded
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+  }, [])
 
   return (
-    <AmplifyThemeProvider>
-      <Authenticator.Provider>
-        <RootLayoutNav />
-      </Authenticator.Provider>
-    </AmplifyThemeProvider>
-  );
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="startNewWorkout" options={{ headerShown: false }} />
-        <Stack.Screen name="recordWorkout" options={{ headerShown: false }} />
-        <Stack.Screen name="workoutSummary" options={{ headerShown: false }} />
-      </Stack>
-    </ThemeProvider>
-  );
+    <View>
+      {session && session.user ? <Account key={session.user.id} session={session} /> : <Auth />}
+    </View>
+  )
 }

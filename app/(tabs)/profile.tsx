@@ -1,12 +1,10 @@
 import { StyleSheet, Image, ScrollView, Pressable } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useAuthenticator } from '@aws-amplify/ui-react-native';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { useEffect, useState } from 'react';
 
 export default function ProfileScreen() {
-  const { user, authStatus } = useAuthenticator();
   const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
@@ -19,15 +17,8 @@ export default function ProfileScreen() {
       }
     }
 
-    if (authStatus === 'authenticated') {
-      loadUserData();
-    }
-  }, [authStatus]);
+  }, []);
 
-  // Get user's email and name from attributes
-  const userEmail = userData?.attributes?.email || user?.signInDetails?.loginId || 'No email available';
-  const firstName = userData?.attributes?.given_name || '';
-  const lastName = userData?.attributes?.family_name || '';
 
 
   return (
@@ -38,8 +29,8 @@ export default function ProfileScreen() {
           <View style={styles.profileImageContainer}>
             <FontAwesome name="user-circle" size={80} color="#007AFF" />
           </View>
-          <Text style={styles.name}>{`${firstName} ${lastName}`.trim()}</Text>
-          <Text style={styles.email}>{userEmail}</Text>
+          <Text style={styles.name}>Name</Text>
+          <Text style={styles.email}>Email</Text>
         </View>
 
         {/* Stats Summary */}
