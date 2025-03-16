@@ -50,7 +50,7 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="auth" />
             <Stack.Screen name="screens/home" />
-            <Stack.Screen name="screens/createWorkout"/>
+            <Stack.Screen name="screens/workout"/>
             <Stack.Screen name="screens/profile"/>
             <Stack.Screen name="screens/recordWorkout"/>
             <Stack.Screen name="+not-found" />

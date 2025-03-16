@@ -5,7 +5,6 @@ import Card from '../../components/card';
 
 export default function HomeScreen() {
   const router = useRouter();
-  console.log('HomeScreen is rendering');
 
   return (
     <View style={styles.container}>
@@ -13,15 +12,17 @@ export default function HomeScreen() {
         <Text style={styles.header}>Active Workouts</Text>
         <View style={styles.cardsContainer}>
           <Card 
-            title="Upper Body Workout" 
+            title="Tuesday Body Workout" 
             subtitle="" 
             date="2025-03-03" 
+            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'edit', id: '1'}})}
           />
 
           <Card 
-            title="Lower Body Workout" 
+            title="Monday Workout" 
             subtitle="" 
             date="2025-03-05" 
+            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'edit', id: '2'}})}
           />
         </View>
 
@@ -30,7 +31,7 @@ export default function HomeScreen() {
             styles.startButton,
             { opacity: pressed ? 0.8 : 1 }
           ]}
-          onPress={() => router.push('screens/createWorkout')}
+          onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'create'}})}
         >
           <FontAwesome name="plus-circle" size={30} color="white" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Create Workout</Text>
@@ -44,12 +45,14 @@ export default function HomeScreen() {
             title="Upper Body Workout" 
             subtitle="Completed yesterday" 
             date="2023-06-15" 
+            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'view', id: '1'}})}
           />
 
           <Card 
             title="Lower Body Workout" 
             subtitle="Completed last week" 
             date="2023-06-10" 
+            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'view', id: '2'}})}
           />
         </View>
       </View>

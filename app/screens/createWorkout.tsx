@@ -23,51 +23,6 @@ export default function CreateWorkout() {
   const [sets, setSets] = useState(3); // Default value
   const [reps, setReps] = useState(10); // Default value
 
-  const incrementSets = () => setSets(prev => prev + 1);
-  const decrementSets = () => setSets(prev => prev > 1 ? prev - 1 : 1);
-  const incrementReps = () => setReps(prev => prev + 1);
-  const decrementReps = () => setReps(prev => prev > 1 ? prev - 1 : 1);
-
-  const addExercise = () => {
-    if (currentExercise) {
-      const newExercise = {
-        name: currentExercise,
-        sets: sets,
-        reps: reps
-      };
-      setSelectedExercises([...selectedExercises, newExercise]);
-      // Reset fields after adding
-      setCurrentExercise('');
-      setSets(3); // Reset to default
-      setReps(10); // Reset to default
-    }
-  };
-
-  const removeExercise = (index) => {
-    const updatedExercises = [...selectedExercises];
-    updatedExercises.splice(index, 1);
-    setSelectedExercises(updatedExercises);
-  };
-
-  const renderExerciseItem = ({ item, index, drag, isActive }) => {
-    return (
-      <TouchableOpacity
-        onLongPress={drag}
-        style={[
-          styles.exerciseItem,
-          isActive && styles.exerciseItemActive
-        ]}
-      >
-        <View style={styles.exerciseContent}>
-          <Text style={styles.exerciseItemName}>{item.name}</Text>
-          <Text style={styles.exerciseDetails}>{item.sets} sets × {item.reps} reps</Text>
-        </View>
-        <TouchableOpacity onPress={() => removeExercise(index)}>
-          <Text style={styles.removeButton}>×</Text>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -83,82 +38,8 @@ export default function CreateWorkout() {
         />
         
         <Text style={styles.sectionLabel}>Exercises</Text>
+
         
-        <View style={styles.exerciseSelector}>
-          <Picker
-            selectedValue={currentExercise}
-            onValueChange={(itemValue) => setCurrentExercise(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Select an exercise" value="" />
-            {exerciseOptions.map((exercise) => (
-              <Picker.Item key={exercise} label={exercise} value={exercise} />
-            ))}
-          </Picker>
-        </View>
-        
-        {currentExercise ? (
-          <View style={styles.exerciseConfig}>
-            <Text style={styles.exerciseName}>{currentExercise}</Text>
-            
-            <View style={styles.counterRow}>
-              <View style={styles.counter}>
-                <Text style={styles.counterLabel}>Sets</Text>
-                <View style={styles.counterControl}>
-                  <TouchableOpacity onPress={decrementSets} style={styles.counterButton}>
-                    <Text style={styles.counterButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.counterValue}>{sets}</Text>
-                  <TouchableOpacity onPress={incrementSets} style={styles.counterButton}>
-                    <Text style={styles.counterButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.counter}>
-                <Text style={styles.counterLabel}>Reps</Text>
-                <View style={styles.counterControl}>
-                  <TouchableOpacity onPress={decrementReps} style={styles.counterButton}>
-                    <Text style={styles.counterButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.counterValue}>{reps}</Text>
-                  <TouchableOpacity onPress={incrementReps} style={styles.counterButton}>
-                    <Text style={styles.counterButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.addButton} 
-              onPress={addExercise}
-            >
-              <Text style={styles.buttonText}>Add Exercise</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-        
-        {selectedExercises.length > 0 ? (
-          <View style={styles.exerciseList}>
-            <DraggableFlatList
-              data={selectedExercises}
-              renderItem={renderExerciseItem}
-              keyExtractor={(item, index) => `exercise-${index}`}
-              onDragEnd={({ data }) => setSelectedExercises(data)}
-            />
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No exercises added</Text>
-          </View>
-        )}
-        
-        <TouchableOpacity 
-          style={[styles.saveButton, !selectedExercises.length && styles.disabledButton]} 
-          disabled={!selectedExercises.length}
-        >
-          <Text style={styles.saveButtonText}>Save</Text>
-        </TouchableOpacity>
       </View>
     </GestureHandlerRootView>
   );

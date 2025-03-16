@@ -4,9 +4,10 @@ type CardProps = {
   title: string;
   subtitle: string;
   date: string;
+  onPress?: () => void;
 };
 
-export default function Card({ title, subtitle, date }: CardProps) {
+export default function Card({ title, subtitle, date, onPress }: CardProps) {
   return (
     <View>
       <Pressable 
@@ -14,7 +15,7 @@ export default function Card({ title, subtitle, date }: CardProps) {
           styles.card,
           { opacity: pressed ? 0.8 : 1 }
         ]}
-        onPress={() => Alert.alert(`${title} pressed`)}
+        onPress={onPress}
       >
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardSubtitle}>{subtitle}</Text>
