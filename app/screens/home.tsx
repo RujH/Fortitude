@@ -1,29 +1,62 @@
 import { StyleSheet, Pressable, View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useEffect, useState } from 'react';
 import Card from '../../components/card';
+import { SessionService } from '../../lib/services/sessionService';
+import { Session } from '../../constants/sessionData';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [activeWorkouts, setActiveWorkouts] = useState<Session[]>([]);
+  const [pastWorkouts, setPastWorkouts] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchWorkouts();
+  }, []);
+
+  const fetchWorkouts = async () => {
+    try {
+      setLoading(true);
+      
+      // Use SessionService to fetch workouts
+      const activeData = await SessionService.fetchActiveWorkouts();
+      const pastData = await SessionService.fetchPastWorkouts();
+      
+      console.log('Active workouts data:', activeData);
+      console.log('Past workouts data:', pastData);
+      
+      setActiveWorkouts(activeData || []);
+      setPastWorkouts(pastData || []);
+    } catch (error) {
+      console.error('Error fetching workouts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.header}>Active Workouts</Text>
         <View style={styles.cardsContainer}>
-          <Card 
-            title="Tuesday Body Workout" 
-            subtitle="" 
-            date="2025-03-03" 
-            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'edit', id: '1'}})}
-          />
-
-          <Card 
-            title="Monday Workout" 
-            subtitle="" 
-            date="2025-03-05" 
-            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'edit', id: '2'}})}
-          />
+          {activeWorkouts.length > 0 ? (
+            activeWorkouts.map((workout) => (
+              <Card 
+                key={workout.session_id}
+                title={workout.name} 
+                subtitle="" 
+                date={SessionService.formatDate(workout.created_at)} 
+                onPress={() => router.push({
+                  pathname: '/screens/workout', 
+                  params: {mode: 'edit', id: workout.session_id}
+                })}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No active workouts</Text>
+          )}
         </View>
 
         <Pressable 
@@ -37,23 +70,25 @@ export default function HomeScreen() {
           <Text style={styles.buttonText}>Create Workout</Text>
         </Pressable>
       
-
         <Text style={styles.header}>Past Workouts</Text>
         
         <View style={styles.cardsContainer}>
-          <Card 
-            title="Upper Body Workout" 
-            subtitle="Completed yesterday" 
-            date="2023-06-15" 
-            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'view', id: '1'}})}
-          />
-
-          <Card 
-            title="Lower Body Workout" 
-            subtitle="Completed last week" 
-            date="2023-06-10" 
-            onPress={() => router.push({pathname: '/screens/workout', params: {mode: 'view', id: '2'}})}
-          />
+          {pastWorkouts.length > 0 ? (
+            pastWorkouts.map((workout) => (
+              <Card 
+                key={workout.session_id}
+                title={workout.name} 
+                subtitle={workout.completed_date ? SessionService.getRelativeTimeSubtitle(workout.completed_date) : ""} 
+                date={workout.completed_date ? SessionService.formatDate(workout.completed_date) : SessionService.formatDate(workout.created_at)} 
+                onPress={() => router.push({
+                  pathname: '/screens/workout', 
+                  params: {mode: 'view', id: workout.session_id}
+                })}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No past workouts</Text>
+          )}
         </View>
       </View>
     </View>
@@ -138,6 +173,12 @@ const styles = StyleSheet.create({
   cardSubtitle: {
     fontSize: 14,
     color: '#666',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    padding: 20,
   },
 });
 

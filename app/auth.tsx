@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Alert, View, Dimensions, Text, StyleSheet, TextInput, Pressable } from 'react-native'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/providers/supabase'
 import { useRouter } from 'expo-router'
 import Svg, { Image, Ellipse, ClipPath  } from 'react-native-svg'
 import styles from '@/styles'
