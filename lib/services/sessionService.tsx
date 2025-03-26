@@ -1,5 +1,6 @@
 import { SessionRepository } from '../repositories/sessionRepository';
-import { Session } from '../../constants/sessionData';
+import { Session } from '../../constants/constants';
+
 export const SessionService = {
   async fetchAllSessions() {
     return await SessionRepository.getAllSessions();
@@ -31,5 +32,17 @@ export const SessionService = {
     if (diffDays === 1) return "Completed yesterday";
     if (diffDays < 7) return `Completed ${diffDays} days ago`;
     return "Completed last week";
+  },
+
+  async fetchSessionById(sessionId: string) {
+    return await SessionRepository.getSessionById(sessionId);
+  },
+
+  async updateSession(sessionId: string, sessionData: Partial<Session>) {
+    return await SessionRepository.updateSession(sessionId, sessionData);
+  },
+
+  async completeSession(sessionId: string) {
+    return await SessionRepository.completeSession(sessionId);
   }
 };

@@ -4,7 +4,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useEffect, useState } from 'react';
 import Card from '../../components/card';
 import { SessionService } from '../../lib/services/sessionService';
-import { Session } from '../../constants/sessionData';
+import { Session } from '../../constants/constants';
 
 export default function HomeScreen() {
   const router = useRouter();
