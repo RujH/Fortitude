@@ -9,12 +9,20 @@ import Animated, {
   useSharedValue, 
   interpolate, 
   withTiming, 
-  withDelay,
-  withSequence,
-  withSpring 
+  withDelay
 } from 'react-native-reanimated'
 
-
+// Add these styles to your styles import or define them inline
+const forgotPasswordStyles = StyleSheet.create({
+  forgotPasswordContainer: {
+    alignSelf: 'flex-start',
+    marginHorizontal: 30,
+  },
+  forgotPasswordText: {
+    color: '#007AFF',
+    fontSize: 14,
+  }
+});
 
 export default function Auth() {
 
@@ -25,9 +33,9 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('')
 
   const imagePosition = useSharedValue(1)
-  const formButtonScale = useSharedValue(1);
 
 
   const imageAnimatedStyle = useAnimatedStyle(() => {
@@ -63,40 +71,68 @@ export default function Auth() {
           ? withDelay(400, withTiming(1, { duration: 800 })) 
           : withTiming(0, { duration: 300 }),
         transform: [{
-          translateY: interpolate(imagePosition.value, [0, 1], [-150, 100])//do we need this?
+          translateY: interpolate(imagePosition.value, [0, 1], [-60, 100])
         }]
     }
   })
-  const formButtonAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{scale: formButtonScale.value}]
-    }
-  })
+
   const singInHandler = () => {
-    console.log("Before:", imagePosition.value);
     imagePosition.value = 0;
-    console.log("After:", imagePosition.value);
+    setIsRegistering(false);
   };
 
   const singUpHandler = () => {
     imagePosition.value = 0
+    setIsRegistering(true);
+  }
+
+  // Function to reset form state
+  const resetForm = () => {
+    setFullName('')
+    setEmail('')
+    setPassword('')
+    setErrorMessage('')
   }
 
   async function signInWithEmail() {
+    // Reset any previous error messages
+    setErrorMessage('')
+    
+    // Validate inputs
+    if (!email.trim() || !password.trim()) {
+      setErrorMessage('Please enter both email and password')
+      return
+    }
+    
     setLoading(true)
     const { error, data } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     })
 
-    if (error) Alert.alert(error.message)
-    if (data.session) {
-      router.replace('home')
+    if (error) {
+      setErrorMessage(error.message)
+    } else if (data.session) {
+      router.replace('/screens/home')
     }
     setLoading(false)
   }
 
   async function signUpWithEmail() {
+    // Reset any previous error messages
+    setErrorMessage('')
+    
+    // Validate inputs
+    if (!email.trim() || !password.trim()) {
+      setErrorMessage('Please enter both email and password')
+      return
+    }
+    
+    if (isRegistering && !fullName.trim()) {
+      setErrorMessage('Please enter your full name')
+      return
+    }
+    
     setLoading(true)
     const {
       data: { session },
@@ -106,8 +142,11 @@ export default function Auth() {
       password: password,
     })
 
-    if (error) Alert.alert(error.message)
-    if (!session) Alert.alert('Please check your inbox for email verification!')
+    if (error) {
+      setErrorMessage(error.message)
+    } else if (!session) {
+      Alert.alert('Please check your inbox for email verification!')
+    }
     setLoading(false)
   }
 
@@ -143,9 +182,12 @@ export default function Auth() {
           ]}>
           <Pressable 
             style={styles.closeButton} 
-            onPress={() => imagePosition.value = 1}
+            onPress={() => {
+              imagePosition.value = 1
+              resetForm()
+            }}
           >
-            <View style={styles.closeButtonLine} />
+            
           </Pressable>
         </Animated.View>
 
@@ -167,39 +209,76 @@ export default function Auth() {
           
 
         <Animated.View style={[styles.formInputContainer, formInputAnimatedStyle]}>
-
-          <TextInput
-            placeholder="Full Name"
-            style={styles.authTextInput}
-            // value={email}
-            // onChangeText={(text) => setEmail(text)}
           
-          />
+          {isRegistering && (
+            <TextInput
+              placeholder="Full Name"
+              style={styles.authTextInput}
+              value={fullName}
+              onChangeText={(text) => setFullName(text)}
+            />
+          )}
 
           <TextInput
             placeholder="Email"
             style={styles.authTextInput}
-            // value={password}
-            // onChangeText={(text) => setPassword(text)}
-      
+            value={email}
+            onChangeText={(text) => setEmail(text)}
           />
+          
           <TextInput
             placeholder="Password"
             style={styles.authTextInput}
-            // value={confirmPassword}
-            // onChangeText={(text) => setConfirmPassword(text)}
-          
+            value={password}
+            onChangeText={(text) => setPassword(text)}
+            secureTextEntry={true}
           />
-         
+          
+          {/* Completely redesigned error message */}
+          {errorMessage ? (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: 12,
+              marginBottom: 8,
+              paddingHorizontal: 10,
+            }}>
+              <View style={{
+                width: 4,
+                height: 16,
+                backgroundColor: '#FF375F',
+                marginRight: 8,
+                borderRadius: 2,
+              }} />
+              <Text style={{
+                color: '#FF375F',
+                fontSize: 13,
+                fontWeight: '500',
+                flex: 1,
+              }}>{errorMessage}</Text>
+            </View>
+          ) : null}
+          
+          {!isRegistering && (
+            <View style={forgotPasswordStyles.forgotPasswordContainer}>
+              <Pressable onPress={() => Alert.alert("Reset Password", "Password reset functionality will be implemented soon.")}>
+                <Text style={forgotPasswordStyles.forgotPasswordText}>Forgot Password?</Text>
+              </Pressable>
+            </View>
+          )}
 
-          <Animated.View style={[styles.formButton, formButtonAnimatedStyle]}>
-            <Pressable onPress={() => formButtonScale.value = withSequence(withSpring(1.5), withSpring(1))}>
+          <Animated.View style={styles.formButton}>
+            <Pressable 
+              onPress={() => {
+                isRegistering ? signUpWithEmail() : signInWithEmail();
+              }}
+              disabled={loading}
+            >
               <Text style={styles.buttonText}>
                 {isRegistering ? "REGISTER" : "LOG IN"}
               </Text>
             </Pressable>
           </Animated.View>
-       
         </Animated.View>
 
 
