@@ -28,9 +28,11 @@ export default function Auth() {
 
   const { width, height } = Dimensions.get('window')
   const router = useRouter()
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false);
   const [errorMessage, setErrorMessage] = useState('')
@@ -88,9 +90,11 @@ export default function Auth() {
 
   // Function to reset form state
   const resetForm = () => {
-    setFullName('')
+    setFirstName('')
+    setLastName('')
     setEmail('')
     setPassword('')
+    setConfirmPassword('')
     setErrorMessage('')
   }
 
@@ -128,9 +132,16 @@ export default function Auth() {
       return
     }
     
-    if (isRegistering && !fullName.trim()) {
-      setErrorMessage('Please enter your full name')
-      return
+    if (isRegistering) {
+      if (!firstName.trim() || !lastName.trim()) {
+        setErrorMessage('Please enter your first and last name')
+        return
+      }
+      
+      if (password !== confirmPassword) {
+        setErrorMessage('Passwords do not match')
+        return
+      }
     }
     
     setLoading(true)
@@ -140,6 +151,12 @@ export default function Auth() {
     } = await supabase.auth.signUp({
       email: email,
       password: password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        }
+      }
     })
 
     if (error) {
@@ -211,12 +228,20 @@ export default function Auth() {
         <Animated.View style={[styles.formInputContainer, formInputAnimatedStyle]}>
           
           {isRegistering && (
-            <TextInput
-              placeholder="Full Name"
-              style={styles.authTextInput}
-              value={fullName}
-              onChangeText={(text) => setFullName(text)}
-            />
+            <>
+              <TextInput
+                placeholder="First Name"
+                style={styles.authTextInput}
+                value={firstName}
+                onChangeText={(text) => setFirstName(text)}
+              />
+              <TextInput
+                placeholder="Last Name"
+                style={styles.authTextInput}
+                value={lastName}
+                onChangeText={(text) => setLastName(text)}
+              />
+            </>
           )}
 
           <TextInput
@@ -233,6 +258,16 @@ export default function Auth() {
             onChangeText={(text) => setPassword(text)}
             secureTextEntry={true}
           />
+          
+          {isRegistering && (
+            <TextInput
+              placeholder="Confirm Password"
+              style={styles.authTextInput}
+              value={confirmPassword}
+              onChangeText={(text) => setConfirmPassword(text)}
+              secureTextEntry={true}
+            />
+          )}
           
           {/* Completely redesigned error message */}
           {errorMessage ? (

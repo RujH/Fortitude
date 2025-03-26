@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -18,6 +18,8 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const pathname = usePathname();
+  const showHeader = pathname !== "/auth";
 
   useEffect(() => {
     if (loaded) {
@@ -35,13 +37,15 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <View style={styles.container}>
-        {/* Global Header with explicit padding for status bar */}
-        <View style={[styles.headerWrapper, { paddingTop: statusBarHeight }]}>
-          <Header />
-        </View>
+        {/* Global Header with explicit padding for status bar - conditionally rendered */}
+        {showHeader && (
+          <View style={[styles.headerWrapper, { paddingTop: statusBarHeight }]}>
+            <Header />
+          </View>
+        )}
         
         {/* Content area with Stack Navigation */}
-        <View style={styles.contentContainer}>
+        <View style={[styles.contentContainer, !showHeader && styles.fullHeight]}>
           <Stack 
             screenOptions={{ 
               headerShown: false,
@@ -72,6 +76,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   contentContainer: {
+    flex: 1,
+  },
+  fullHeight: {
     flex: 1,
   },
 });

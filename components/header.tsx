@@ -1,8 +1,20 @@
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { supabase } from '../lib/providers/supabase';
 
 export default function Header() {
   const navigation = useNavigation();
+  
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      // Navigate to login screen after logout
+      navigation.navigate('auth');
+    } catch (error) {
+      Alert.alert('Error logging out', error.message);
+    }
+  };
   
   return (
     <View style={styles.headerContainer}>
@@ -14,9 +26,14 @@ export default function Header() {
           <View style={styles.profileCircle} />
         </TouchableOpacity>
       </View>
-      <View style={styles.statusContainer}>
-        <View style={[styles.statusCircle, styles.statusOnline]} />
-        <Text style={styles.statusText}>Online</Text>
+      <View style={styles.rightContainer}>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusCircle, styles.statusOnline]} />
+          <Text style={styles.statusText}>Online</Text>
+        </View>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -48,9 +65,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#ccc',
   },
+  rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 16,
   },
   statusCircle: {
     width: 16,
@@ -67,6 +89,17 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 16,
     color: 'white',
+  },
+  logoutButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+  },
+  logoutText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
 
